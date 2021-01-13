@@ -1,11 +1,9 @@
 Option Explicit
 
-'模块名称：String对象类模块
-'描述：字符、字符串、文本对象
-'作者：HandsomeFa
-'创建时间：2018年11月27日
-'修改时间：2019年3月29日
-'版本：2.0.4
+'@File  ：CString.cls
+'@Author：HandsomeFa
+'@Date  : 2021/01/13
+'@Desc  ：likes char、string、text
 
 '***************************************************
 '问题与解决
