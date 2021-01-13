@@ -1,0 +1,282 @@
+Option Explicit
+
+'模块名称：String对象类模块
+'描述：字符、字符串、文本对象
+'作者：HandsomeFa
+'创建时间：2018年11月27日
+'修改时间：2019年3月29日
+'版本：2.0.4
+
+'***************************************************
+'问题与解决
+'***************************************************
+'1、换行符chr(10)函数功能相当于vbLf，回车符chr(13)函数功能相当于vbCr，vbLf+chr(13)函数功能相当于vbCrLf。
+'2、制表符vbTab功能是Tab键。
+'3、变长字符串最多可包含大约 20 亿 ( 2^31)个字符。
+'4、定长字符串可包含 1 到大约 64K ( 2^16 ) 个字符。
+
+'***************************************************
+'声明变量
+'***************************************************
+'模块变量
+Private mKeySeparator$
+Private mItemSeparator$
+
+'枚举索引类型
+Public Enum EStrIndexType
+    adCharIndex
+    adSubstringIndex
+End Enum
+
+'***************************************************
+'类初始化
+'***************************************************
+Private Sub Class_Initialize()
+    mKeySeparator = ","
+    mItemSeparator = ";"
+    Application.StatusBar = "Reference CStrCom Class"
+End Sub
+
+'***************************************************
+'公共属性
+'***************************************************
+'获取键分割符
+Public Property Let KeySeparator(sep$)
+    mKeySeparator = sep
+End Property
+
+'获取项分割符
+Public Property Let ItemSeparator(sep$)
+    mItemSeparator = sep
+End Property
+
+'***************************************************
+'公共函数和方法，转化函数
+'***************************************************
+'转为字符串
+Public Function ToString(var As Variant) As String
+    Dim result$, arr As Variant
+    On Error Resume Next
+    If IsEmpty(var) Then
+        result = ""
+    Else
+        Select Case TypeName(var)
+            Case "String"
+                result = var
+            Case "Variant()"
+                result = Join(var, ",")
+        End Select
+    End If
+    ToString = result
+End Function
+
+'转为大写字符串
+Public Function ToUpper(str$) As String
+    ToUpper = UCase(str)
+End Function
+
+'转为小写字符串
+Public Function ToLower(str$) As String
+    ToLower = LCase(str)
+End Function
+
+'转为首字母大写字符串
+Public Function ToProper(str$) As String
+    ToProper = Application.Proper(str)
+End Function
+
+'***************************************************
+'公共函数和方法，判断函数
+'***************************************************
+'是否为空字符串
+Public Function IsNull(var As Variant) As Boolean
+    IsNull = var = ""
+End Function
+
+'是否为空格
+Public Function IsSpace(var As Variant) As Boolean
+    IsSpace = var = " "
+End Function
+
+'判断两个字符是否相等，例如"zxf"和"zxf"相等，但和"zxfa"不等
+Public Function IsEqual(str1$, str2$) As Boolean
+    IsEqual = str1 = str2
+End Function
+
+'是否包含这样的字符，例如"zxf"中包含z，不包含a
+Public Function IsContain(str$, str_in$) As Boolean
+    IsContain = InStr(1, str_in, str, vbTextCompare)
+End Function
+
+'是否存在这样的字符，例如"北京,上海,广州"中存在广州，不存在深圳
+Public Function Exists(str$, str_in$, Optional sep$ = ",") As Boolean
+    Dim i&, iCount&
+    iCount = StringCount(str_in, sep)
+    For i = 1 To iCount
+        If StringIn(str_in, i, ",") = str Then
+            Exists = True
+            Exit For
+        End If
+    Next i
+    Exists = False
+End Function
+
+'***************************************************
+'公共函数和方法，字符串和数组
+'***************************************************
+'提取字符串
+Public Function TextAt(strText$, sep$, iIndex&) As String
+    Dim arrText As Variant
+    arrText = Split(strText, sep)
+    If iIndex < 1 Or iIndex > UBound(arrText) + 1 Then
+        split_text_at = ""
+    Else
+        split_text_at = arrText(iIndex - 1)
+    End If
+End Function
+
+'***************************************************
+'公共函数和方法，连接字符串
+'***************************************************
+'连接字符串
+Public Function JoinString(arr As Variant, Optional sep$ = ",") As String
+    JoinString = Join(arr, sep)
+End Function
+
+'连接单元格区域，转为字符串
+Public Function JoinRange(ran As Range, Optional dilimiter$ = ",", Optional ignore_empty As Boolean = True) As String
+    JoinRange = WorksheetFunction.TextJoin(dilimiter, ignore_empty, ran)
+End Function
+
+'连接数组，转为字符串
+Public Function JoinArray(arr As Variant, Optional sep$ = ",") As String
+    JoinArray = WorksheetFunction.TextJoin(sep, True, arr)
+End Function
+
+'拼接文本，例如"北京,上海,广州"和"深圳,苏州,杭州"拼接在一起
+Public Function ConcatText(str1$, str2$, Optional sep$ = ",") As String
+    Dim result$
+    str1 = str1 & IIf(str1 = "", "", sep)
+    str2 = str2 & IIf(str2 = "", "", sep)
+    result = str1 & str2
+    result = Left(result, Len(result) - Len(sep))
+    ConcatText = result
+End Function
+
+'***************************************************
+'公共函数和方法，操作符
+'***************************************************
+'交换分隔符
+Public Function ExchangeSeparator(str$, sep1$, Optional sep2$ = ",") As String
+    ExchangeSeparator = Replace(Replace(Replace(str, sep1, "|"), sep2, sep1), "|", sep1)
+End Function
+
+'***************************************************
+'公共函数和方法，格式化文本
+'***************************************************
+'添加左右字符的文本，例如把"北京,上海,广州"转为"[北京],[上海],[广州]"
+Public Function AddText(str$, Optional sep$ = ",", Optional strLText$ = "[", Optional strRText$ = "]") As String
+    Dim temp$
+    temp = Replace(str, sep, strRText & sep & strLText)
+    AddText = strLText & temp & strRText
+End Function
+
+'格式化文本，例如把"北京,上海,广州"转为"北京 as tp_北京,上海 as tp_上海,广州 as tp_广州"
+Public Function FormatText(str$, Optional sep$ = ",", Optional fmt$ = "_th_ as tp__th_", Optional strReplaceText$ = "_th_") As String
+    Dim i&, iCount&, stri$, temp$
+    iCount = StringCount(str, sep)
+    For i = 1 To iCount
+        stri = StringIn(str, i, sep)
+        temp = temp & Replace(fmt, strReplaceText, stri) & sep
+    Next i
+    FormatText = Left(temp, Len(temp) - Len(sep))
+End Function
+
+'***************************************************
+'公共函数和方法，替换文本
+'***************************************************
+'替换文本的字符串
+Public Function ReplaceText(str$, strOldText As Variant, strNewText As Variant) As String
+    Dim i&, arrOldText As Variant, arrNewText As Variant, temp$
+    arrOldText = Split(strOldText, ",")
+    arrNewText = Split(strNewText, ",")
+    For i = LBound(arrOldText) To UBound(arrOldText)
+        If i <= UBound(arrNewText) Then
+            temp = arrNewText(i)
+        End If
+        str = Replace(str, arrOldText(i), temp)
+    Next i
+    ReplaceText = str
+End Function
+
+'***************************************************
+'公共函数和方法，提取子字符串
+'***************************************************
+'取字符串的左边部分，同Left函数
+Public Function LeftString(str$, Optional iLength& = 1) As String
+    LeftString = Left(str, Len(str) - iLength)
+End Function
+
+'取字符串的右边部分，同Right函数
+Public Function RightString(str$, Optional iLength& = 1) As String
+    RightString = Right(str, Len(str) - iLength)
+End Function
+
+'取字符串的中间部分，同Mid函数
+Public Function SubString(str$, iStart&, Optional iLength& = 1) As String
+    SubString = Mid(str, iStart, iLength)
+End Function
+
+'子字符串计数，例如"北京,上海,广州"有3个
+Public Function StringCount(strlst$, Optional sep$ = ",") As Long
+    Dim result&, temp&
+    temp = Len(strlst) - Len(Replace(strlst, sep, ""))
+    If strlst = "" Then
+        result = 0
+    ElseIf sep = "" Then
+        result = Len(strlst)
+    Else
+        result = temp / Len(sep) + 1
+    End If
+    StringCount = result
+End Function
+
+'提取子字符串，拆分字符串，并提取指定位置的子字符串，例如"北京,上海,广州"的第2个是上海
+Public Function StringIn(str$, in_str&, Optional sep$ = ",") As String
+    Dim result$
+    If str = "" Then
+        result = ""
+    Else
+        result = Split(str, sep)(in_str - 1)
+    End If
+    StringIn = result
+End Function
+
+'获取子字符串的索引，例如"广州"在"北京,上海,广州"中的位置：字符索引是7，子字符串索引是3
+Public Function InString(str$, str_in$, Optional iStart& = 1, Optional sep$ = ",", Optional typ As EStrIndexType = adCharIndex) As Long
+    Dim result&, i&, iCount&
+    Select Case typ
+        Case adCharIndex
+            result = InStr(iStart, str_in, str, vbTextCompare)
+        Case adSubstringIndex
+            iCount = StringCount(str_in, sep)
+            If iStart > iCount Then Exit Function
+            For i = iStart To iCount
+                If StringIn(str_in, i, sep) = str Then
+                    result = i
+                    Exit For
+                End If
+            Next i
+        Case Else
+            Exit Function
+    End Select
+    InString = result
+End Function
+
+'***************************************************
+'类结束
+'***************************************************
+Private Sub Class_Terminate()
+    Application.StatusBar = "就绪"
+End Sub
+
