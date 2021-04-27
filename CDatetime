@@ -1,0 +1,817 @@
+Option Explicit
+
+'模块名称：日期、时间类模块
+'作者：HandsomeFa
+'日期：2019年3月29日
+'描述：日期差、倒计时
+
+'***************************************************
+'声明变量
+'***************************************************
+'模块变量
+Private mLunarYear() As Variant
+Private mFirstDayOfWeek As VbDayOfWeek
+Private mFirstWeekOfYear As VbFirstWeekOfYear
+
+'常量
+Private Const TEN_HEAVERLY_STEMS = "甲乙丙丁戊已庚辛壬癸"
+Private Const TWELVE_BRANCH_STEMS = "子丑寅卯辰巳午未申酉戌亥"
+Private Const ZODIAC_STRING = "鼠牛虎兔龙蛇马羊猴鸡狗猪"
+Private Const LUNAR_MONTH = "正二三四五六七八九十冬腊"
+Private Const LUNAR_DAY = "初一初二初三初四初五初六初七初八初九初十十一十二十三十四十五十六十七十八十九二十廿一廿二廿三廿四廿五廿六廿七廿八廿九三十"
+Private Const SOLAR_SONG_STRING = "春雨惊春清谷天，夏满芒夏暑相连。秋处露秋寒霜降，冬雪雪冬小大寒。每月两节不变更，最多相差一两天。上半年来六廿一，下半年是八廿三。"
+Private Const SOLAR_TERMS_STRING = "立春雨水惊蛰春分清明谷雨立夏小满芒种夏至小暑大暑立秋处暑白露秋分寒露霜降立冬小雪大雪冬至小寒大寒"
+Private Const EFFECTIVE_START_YEAR As Long = 1900 '有效开始年份
+Private Const EFFECTIVE_END_YEAR As Long = 2100 '有效结束年份
+Private Const LUNAR_YEAR_CODE = "AB500D2,4BD0883," _
+        & "4AE00DB,A5700D0,54D0581,D2600D8,D9500CC,655147D,56A00D5,9AD00CA,55D027A,4AE00D2," _
+        & "A5B0682,A4D00DA,D2500CE,D25157E,B5500D6,56A00CC,ADA027B,95B00D3,49717C9,49B00DC," _
+        & "A4B00D0,B4B0580,6A500D8,6D400CD,AB5147C,2B600D5,95700CA,52F027B,49700D2,6560682," _
+        & "D4A00D9,EA500CE,6A9157E,5AD00D6,2B600CC,86E137C,92E00D3,C8D1783,C9500DB,D4A00D0," _
+        & "D8A167F,B5500D7,56A00CD,A5B147D,25D00D5,92D00CA,D2B027A,A9500D2,B550781,6CA00D9," _
+        & "B5500CE,535157F,4DA00D6,A5B00CB,457037C,52B00D4,A9A0883,E9500DA,6AA00D0,AEA0680," _
+        & "AB500D7,4B600CD,AAE047D,A5700D5,52600CA,F260379,D9500D1,5B50782,56A00D9,96D00CE," _
+        & "4DD057F,4AD00D7,A4D00CB,D4D047B,D2500D3,D550883,B5400DA,B6A00CF,95A1680,95B00D8," _
+        & "49B00CD,A97047D,A4B00D5,B270ACA,6A500DC,6D400D1,AF40681,AB600D9,93700CE,4AF057F," _
+        & "49700D7,64B00CC,74A037B,EA500D2,6B50883,5AC00DB,AB600CF,96D0580,92E00D8,C9600CD," _
+        & "D95047C,D4A00D4,DA500C9,755027A,56A00D1,ABB0781,25D00DA,92D00CF,CAB057E,A9500D6," _
+        & "B4A00CB,BAA047B,B5500D2,55D0983,4BA00DB,A5B00D0,5171680,52B00D8,A9300CD,795047D," _
+        & "6AA00D4,AD500C9,5B5027A,4B600D2,96E0681,A4E00D9,D2600CE,EA6057E,D5300D5,5AA00CB," _
+        & "76A037B,96D00D3,4AB0B83,4AD00DB,A4D00D0,D0B1680,D2500D7,D5200CC,DD4057C,B5A00D4," _
+        & "56D00C9,55B027A,49B00D2,A570782,A4B00D9,AA500CE,B25157E,6D200D6,ADA00CA,4B6137B," _
+        & "93700D3,49F08C9,49700DB,64B00D0,68A1680,EA500D7,6AA00CC,A6C147C,AAE00D4,92E00CA," _
+        & "D2E0379,C9600D1,D550781,D4A00D9,DA400CD,5D5057E,56A00D6,A6C00CB,55D047B,52D00D3," _
+        & "A9B0883,A9500DB,B4A00CF,B6A067F,AD500D7,55A00CD,ABA047C,A5A00D4,52B00CA,B27037A," _
+        & "69300D1,7330781,6AA00D9,AD500CE,4B5157E,4B600D6,A5700CB,54E047C,D1600D2,E960882," _
+        & "D5200DA,DAA00CF,6AA167F,56D00D7,4AE00CD,A9D047D,A2D00D4,D1500C9,F250279,D5200D1"
+
+'枚举间隔类型
+Public Enum ETimeInterval
+    vbYear '年
+    vbYearDay '一年的日数
+    vbQuarter '季
+    vbMonth '月
+    vbWeek '周
+    vbWeekDay '周日，代表一周中的第几天
+    vbDay '日
+    vbHour '时
+    vbMinite '分
+    vbSecond '秒
+End Enum
+
+'枚举时间类型
+Public Enum EDateTimeType
+    adNow '当前日期+时间
+    adDate '当前日期
+    adTime '时间
+End Enum
+
+'枚举中英文文本格式
+Public Enum EChEnFormat
+    adChinese
+    adEnglish
+End Enum
+
+'***************************************************
+'类初始化
+'***************************************************
+Private Sub Class_Initialize()
+    mFirstDayOfWeek = vbMonday
+    mFirstWeekOfYear = vbUseSystem
+    mLunarYear = Array( _
+        &H4BD8&, &H4AE0&, &HA570&, &H54D5&, &HD260&, &HD950&, &H5554&, &H56AF&, &H9AD0&, &H55D2&, _
+        &H4AE0&, &HA5B6&, &HA4D0&, &HD250&, &HD295&, &HB54F&, &HD6A0&, &HADA2&, &H95B0&, &H4977&, _
+        &H497F&, &HA4B0&, &HB4B5&, &H6A50&, &H6D40&, &HAB54&, &H2B6F&, &H9570&, &H52F2&, &H4970&, _
+        &H6566&, &HD4A0&, &HEA50&, &H6A95&, &H5ADF&, &H2B60&, &H86E3&, &H92EF&, &HC8D7&, &HC95F&, _
+        &HD4A0&, &HD8A6&, &HB55F&, &H56A0&, &HA5B4&, &H25DF&, &H92D0&, &HD2B2&, &HA950&, &HB557&, _
+        &H6CA0&, &HB550&, &H5355&, &H4DAF&, &HA5B0&, &H4573&, &H52BF&, &HA9A8&, &HE950&, &H6AA0&, _
+        &HAEA6&, &HAB50&, &H4B60&, &HAAE4&, &HA570&, &H5260&, &HF263&, &HD950&, &H5B57&, &H56A0&, _
+        &H96D0&, &H4DD5&, &H4AD0&, &HA4D0&, &HD4D4&, &HD250&, &HD558&, &HB540&, &HB6A0&, &H95A6&, _
+        &H95BF&, &H49B0&, &HA974&, &HA4B0&, &HB27A&, &H6A50&, &H6D40&, &HAF46&, &HAB60&, &H9570&, _
+        &H4AF5&, &H4970&, &H64B0&, &H74A3&, &HEA50&, &H6B58&, &H5AC0&, &HAB60&, &H96D5&, &H92E0&, _
+        &HC960&, &HD954&, &HD4A0&, &HDA50&, &H7552&, &H56A0&, &HABB7&, &H25D0&, &H92D0&, &HCAB5&, _
+        &HA950&, &HB4A0&, &HBAA4&, &HAD50&, &H55D9&, &H4BA0&, &HA5B0&, &H5176&, &H52BF&, &HA930&, _
+        &H7954&, &H6AA0&, &HAD50&, &H5B52&, &H4B60&, &HA6E6&, &HA4E0&, &HD260&, &HEA65&, &HD530&, _
+        &H5AA0&, &H76A3&, &H96D0&, &H4AFB&, &H4AD0&, &HA4D0&, &HD0B6&, &HD25F&, &HD520&, &HDD45&, _
+        &HB5A0&, &H56D0&, &H55B2&, &H49B0&, &HA577&, &HA4B0&, &HAA50&, &HB255&, &H6D2F&, &HADA0&, _
+        &H4B63&, &H937F&, &H49F8&, &H4970&, &H64B0&, &H68A6&, &HEA5F&, &H6B20&, &HA6C4&, &HAAEF&, _
+        &H92E0&, &HD2E3&, &HC960&, &HD557&, &HD4A0&, &HDA50&, &H5D55&, &H56A0&, &HA6D0&, &H55D4&, _
+        &H52D0&, &HA9B8&, &HA950&, &HB4A0&, &HB6A6&, &HAD50&, &H55A0&, &HABA4&, &HA5B0&, &H52B0&, _
+        &HB273&, &H6930&, &H7337&, &H6AA0&, &HAD50&, &H4B55&, &H4B6F&, &HA570&, &H54E4&, &HD260&, _
+        &HE968&, &HD520&, &HDAA0&, &H6AA6&, &H56DF&, &H4AE0&, &HA9D4&, &HA4D0&, &HD150&, &HF252&, _
+        &HD520&) '农历常量(1900~2100，共200年）
+
+End Sub
+
+'***************************************************
+'公共属性
+'***************************************************
+'获取当前年月
+Public Property Get ThisYm() As Long
+    ThisYm = Format(Date, "yyyymm")
+End Property
+
+'获取当前年月日
+Public Property Get ThisYmd() As Long
+    ThisYmd = Format(Date, "yyyymmdd")
+End Property
+
+'获取上月
+Public Property Get LastYm() As Long
+    LastYm = AddYm(Format(Date, "yyyymm"), -1)
+End Property
+
+'获取昨天
+Public Property Get LastYmd() As Long
+    LastYmd = AddYmd(Date, -1)
+End Property
+
+'获取昨天
+Public Property Get Yesterday() As Long
+    Yesterday = AddYmd(Date, -1)
+End Property
+
+'获取明天
+Public Property Get Tomorrow() As Long
+    Tomorrow = AddYmd(Date, 1)
+End Property
+
+'获取周末
+Public Property Get Weekend() As Long
+    Weekend = 2
+End Property
+
+'***************************************************
+'私有函数和方法
+'***************************************************
+'农历年的正月初一的公历日期
+Private Function DateOfLunarYearBeginArr() As Variant
+    Dim result As Variant, i As Integer, itemCount As Integer, fSum As Long
+    itemCount = UBound(mLunarYear)
+    ReDim result(itemCount)
+    result(0) = DateSerial(EFFECTIVE_START_YEAR, 1, 31)
+    For i = 0 To itemCount - 1
+        fSum = GetMultiLunarMonthDays(i + EFFECTIVE_START_YEAR, 12)
+        result(i + 1) = DateAdd("d", fSum, result(i))
+    Next i
+    DateOfLunarYearBeginArr = result
+End Function
+
+'农历年的正月初一的公历日期
+Private Function DateOfLunarYearBegin(y&) As Date
+    DateOfLunarYearBegin = DateOfLunarYearBeginArr(y - EFFECTIVE_START_YEAR)
+End Function
+
+'将压缩的阴历字符还原
+Private Function H2B(strHex As String) As String
+    Dim i As Integer, i As Integer, tmpV As String
+    Const hStr = "0123456789ABCDEF"
+    Const bStr = "0000000100100011010001010110011110001001101010111100110111101111"
+    tmpV = UCase(Left(strHex, 3))
+    '十六进制转二进制
+    For i = 1 To Len(tmpV)
+        i = InStr(hStr, Mid(tmpV, i, 1))
+        H2B = H2B & Mid(bStr, (i - 1) * 4 + 1, 4)
+    Next
+    H2B = H2B & Mid(strHex, 4, 2)
+    '十六进制转十进制
+    H2B = H2B & "0" & CStr(val("&H" & Right(strHex, 2)))
+End Function
+
+'取得 y 年从农历正月初一到 m 月月底的总天数
+Private Function GetMultiLunarMonthDays(y As Long, m As Long) As Long
+    Dim i As Integer, mask As Long, fSum As Long, leapMonth As Integer
+    If m < 1 Then
+        GetMultiLunarMonthDays = 0
+        Exit Function
+    End If
+    mask = &H8000&
+    fSum = 0
+    i = 1
+    ' 各正常月份天数累加
+    While (i <= m) And (mask > &H8)
+        fSum = fSum + GetLunarMonthDays(y, mask)
+        mask = mask / 2
+        i = i + 1
+    Wend
+    ' 闰月天数累加
+    leapMonth = GetLeapMonth(y)
+    If leapMonth > 0 And leapMonth < m Then
+        fSum = fSum + GetLeapDays(y)
+    End If
+    GetMultiLunarMonthDays = fSum
+End Function
+
+'取得 y 年指定月份的天数
+Private Function GetLunarMonthDays(y As Long, mask As Long) As Long
+    If (mLunarYear(y - EFFECTIVE_START_YEAR) And mask) = mask Then
+        GetLunarMonthDays = 30
+    Else
+        GetLunarMonthDays = 29
+    End If
+End Function
+
+'取得 y 年闰月的天数
+Private Function GetLeapDays(y As Long) As Long
+    If (mLunarYear(y - EFFECTIVE_START_YEAR + 1) And &HF) = &HF Then
+        GetLeapDays = 30
+    Else
+        GetLeapDays = 29
+    End If
+End Function
+
+'取得 y 年闰月的月份，1-12，没闰月传回 0
+Private Function GetLeapMonth(y As Long) As Long
+    Dim leapMonth As Long
+    leapMonth = (mLunarYear(y - EFFECTIVE_START_YEAR) And &HF)
+    If leapMonth = &HF Then
+        GetLeapMonth = 0
+    Else
+        GetLeapMonth = leapMonth
+    End If
+End Function
+
+'求随机时间整数
+Public Function GetDtRndInt(dmin&, dmax&) As Long
+    Randomize
+    GetDtRndInt = Int((dmax - dmin + 1) * Rnd + dmin)
+End Function
+
+'时间求模，取余数
+Public Function GetDtMod(iNum&, iDivisor&)
+    GetDtMod = iNum Mod iDivisor
+End Function
+
+'***************************************************
+'公共函数和方法，转化函数
+'***************************************************
+'公历转农历日期
+Private Function Date2LunarCh(dat) As String
+
+On Error GoTo aErr
+
+    If Not IsDate(dat) Then Exit Function
+
+    Dim setDate As Date, tYear As Integer, tMonth As Integer, tDay As Integer
+    setDate = CDate(dat)
+    tYear = year(setDate): tMonth = Month(setDate): tDay = Day(setDate)
+
+    '如果不是有效有日期，退出
+    If tYear > 2100 Or tYear < 1900 Then Exit Function
+
+    Dim daList() As String * 18, conDate As Date, thisMonths As String
+    Dim AddYear As Integer, AddMonth As Integer, AddDay As Integer, getDay As Integer
+    Dim YLyear As String, YLShuXing As String
+    Dim dd0 As String, mm0 As String, ganzhi(0 To 59) As String * 2
+    Dim RunYue As Boolean, RunYue1 As Integer, mDays As Integer, i As Integer
+
+    '加载2年内的农历数据
+    ReDim daList(tYear - 1 To tYear)
+    daList(tYear - 1) = H2B(Mid(LUNAR_YEAR_CODE, (tYear - 1900) * 8 + 1, 7))
+    daList(tYear) = H2B(Mid(LUNAR_YEAR_CODE, (tYear - 1900 + 1) * 8 + 1, 7))
+
+    AddYear = tYear
+
+initYL:
+
+    AddMonth = CInt(Mid(daList(AddYear), 15, 2))
+    AddDay = CInt(Mid(daList(AddYear), 17, 2))
+    conDate = DateSerial(AddYear, AddMonth, AddDay)     '农历新年日期
+
+    getDay = DateDiff("d", conDate, setDate) + 1        '相差天数
+    If getDay < 1 Then AddYear = AddYear - 1: GoTo initYL
+
+    thisMonths = Left(daList(AddYear), 14)
+    RunYue1 = val("&H" & Right(thisMonths, 1))           '闰月月份
+    If RunYue1 > 0 Then                                  '有闰月
+        thisMonths = Left(thisMonths, RunYue1) & Mid(thisMonths, 13, 1) & Mid(thisMonths, RunYue1 + 1)
+    End If
+    thisMonths = Left(thisMonths, 13)
+
+    For i = 1 To 13                                      '计算天数
+        mDays = 29 + CInt(Mid(thisMonths, i, 1))
+        If getDay > mDays Then
+            getDay = getDay - mDays
+        Else
+            If RunYue1 > 0 Then
+                If i = RunYue1 + 1 Then RunYue = True
+                If i > RunYue1 Then i = i - 1
+            End If
+
+            AddMonth = i
+            AddDay = getDay
+            Exit For
+        End If
+    Next
+
+    dd0 = Mid(LUNAR_DAY, (AddDay - 1) * 2 + 1, 2)
+    mm0 = Mid(LUNAR_MONTH, AddMonth, 1) + "月"
+
+    For i = 0 To 59
+        ganzhi(i) = Mid(TEN_HEAVERLY_STEMS, (i Mod 10) + 1, 1) + Mid(TWELVE_BRANCH_STEMS, (i Mod 12) + 1, 1)
+    Next i
+
+    YLyear = ganzhi((AddYear - 4) Mod 60)
+    YLShuXing = Mid(ZODIAC_STRING, ((AddYear - 4) Mod 12) + 1, 1)
+    If RunYue Then mm0 = "闰" & mm0
+
+    Date2Lunar = "农历" & YLyear & "(" & YLShuXing & ")年" & mm0 & dd0
+
+aErr:
+
+End Function
+
+'公历转农历，当闰月时取第二个月
+Private Function LunarCh2Date(tYear As Integer, tMonth As Integer, tDay As Integer, Optional secondMonth As Boolean = False) As String
+
+On Error GoTo aErr
+
+    If tYear > 2100 Or tYear < 1899 Or tMonth > 12 Or tMonth < 1 Or tDay > 30 Or tDay < 1 Then Exit Function
+
+    Dim thisMonths As String, ylNewYear As Date, toMonth As Integer
+    Dim mDays As Integer, RunYue1 As Integer, i As Integer
+    thisMonths = H2B(Mid(LUNAR_YEAR_CODE, (tYear - 1899) * 8 + 1, 7))
+
+    If tDay > 29 + CInt(Mid(thisMonths, tMonth, 1)) Then Exit Function
+
+    ylNewYear = DateSerial(tYear, CInt(Mid(thisMonths, 15, 2)), CInt(Mid(thisMonths, 17, 2)))     '农历新年日期
+
+    thisMonths = Left(thisMonths, 14)
+    RunYue1 = val("&H" & Right(thisMonths, 1))           '闰月月份
+
+    toMonth = tMonth - 1
+    If RunYue1 > 0 Then                                  '有闰月
+        thisMonths = Left(thisMonths, RunYue1) & Mid(thisMonths, 13, 1) & Mid(thisMonths, RunYue1 + 1)
+        If tMonth > RunYue1 Or (secondMonth And tMonth = RunYue1) Then toMonth = tMonth
+    End If
+    thisMonths = Left(thisMonths, 13)
+
+    mDays = 0
+    For i = 1 To toMonth
+        mDays = mDays + 29 + CInt(Mid(thisMonths, i, 1))
+    Next
+    mDays = mDays + tDay
+
+    Lunar2Date = ylNewYear + mDays - 1
+
+aErr:
+
+End Function
+
+'***************************************************
+'公共函数和方法，转化函数
+'***************************************************
+'年月日转年月
+Public Function Ymd2ym(ymd&) As Long
+    Ymd2ym = ymd / 100
+End Function
+
+'年月转年月日
+Public Function Ym2ymd(ym&) As Long
+    Dim m&, d&
+    m = Mid(ym, 5, 2)
+    d = IIf(m = 2, 28, 30)
+    vResult = ym * 100 + d
+    Ym2ymd = vResult
+End Function
+
+'年月转日期
+Public Function ym2date(Optional ym& = 201703) As String
+    ym2date = Left(ym, 4) & "-" & Right(ym, 2) & "-01"
+End Function
+
+'年月转英文月份
+Public Function ym2monthen(Optional ym& = 201703) As String
+    ym2monthen = Format(Left(ym, 4) & "-" & Right(ym, 2) & "-01", "mmm")
+End Function
+
+'日期转年月
+Public Function date2ym(Optional dat$ = "2017-03-08") As Long
+    date2ym = Left(date2ymd(dat), 6)
+End Function
+
+'年月日转日期
+Public Function ymd2date(Optional ymd& = 20170308) As String
+    ymd2date = Left(ymd, 4) & "-" & Mid(ymd, 5, 2) & "-" & Right(ymd, 2)
+End Function
+
+'日期转年月日
+Public Function date2ymd(Optional dat$ = "2017-03-08") As Long
+    date2ymd = Format(dat, "yyyymmdd")
+End Function
+
+'浮点值转日期
+Public Function float2date(Optional flo# = 42802.5)
+    float2date = Format(flo, "yyyy-mm-dd hh:mm:ss.sss")
+End Function
+
+'日期转浮点值
+Public Function date2float(dat)
+    date2float = dat * 1
+End Function
+
+'公历转农历日期
+Public Function Date2Lunar(dat)
+    Dim y&, m&, d&, ymd&, LunarDate As Date
+    ymd = WorksheetFunction.Text(dat, "[$-130000][DBNum4]yyyymmdd")
+    y = Left(ymd, 4)
+    m = Mid(ymd, 5, 2)
+    d = Right(ymd, 2)
+    LunarDate = DateSerial(y, m, d)
+    Date2Lunar = LunarCh(LunarDate)
+End Function
+
+'农历转公历日期
+Public Function Lunar2Date(dat)
+    Dim y&, m&, d&
+    y = year(dat)
+    m = Month(dat)
+    y = Day(dat)
+    Lunar2Date = Lunar2Date(y, m, d)
+End Function
+
+'***************************************************
+'公共函数和方法，获取日期
+'***************************************************
+'获取最后一天
+Function GetLastDay(Optional typ As ETimeInterval = vbMonth) As String
+    Select Case typ
+        Case vbYear
+            result = DateSerial(year(Date) + 1, 1, 0)
+        Case vbQuarter
+            result = DateSerial(year(Date), GetQuarter(Date) * 3 + 1, 0)
+        Case vbMonth
+            result = DateSerial(year(Date), Month(Date) + 1, 0)
+        Case vbWeekDay
+            result = DateSerial(year(Date) + 1, Month(Date) + 1, Day(Date) + (7 - Weekday(Date, vbSunday)))
+    End Select
+    GetLastDay = result
+End Function
+
+'获取所在的季度
+Function GetQuarter(Optional dat As Variant = "2017-03-15") As Long
+    result = (Month(dat) - 1) \ 3 + 1
+    GetQuarter = result
+End Function
+
+'获取所在的星期天
+Function GetSunday(dat) As Long
+    result = DateSerial(year(dat), Month(dat), Day(dat) + (7 - Weekday(dat, vbMonday)))
+    GetSunday = result
+End Function
+
+'获取所在的一年中周id
+Function GetWeekid(dat) As String
+    result = Format(dat, "ww", mFirstDayOfWeek, mFirstWeekOfYear)
+    GetWeekid = result
+End Function
+
+'获取所在的周id
+Function GetWeekdayid(dat) As Long
+    GetWeekdayid = Format(dat, "w", mFirstDayOfWeek, mFirstWeekOfYear)
+End Function
+
+'获取所在的中文周
+Function GetWeekdayCh(dat) As String
+    GetWeekdayCh = WeekdayName(Weekday(dat))
+End Function
+
+'获取所在的英文周
+Function GetWeekdayEn(dat) As String
+    GetWeekdayEn = Format(dat, "dddd")
+End Function
+
+'获取所在的中文月
+Public Function GetMonthCh(dat) As String
+    GetMonthCh = Format(dat, "m月")
+End Function
+
+'获取所在的英文月
+Public Function GetMonthEn(dat) As String
+    GetMonthEn = Format(dat, "mmm")
+End Function
+
+'***************************************************
+'公共函数和方法，增加日期
+'***************************************************
+'增加年月
+Public Function AddYm(Optional ym& = 201703, Optional iAdd& = 5) As Long
+    Dim result&
+    result = DateAdd("m", iAdd, ym2date(ym))
+    result = Format(result, "yyyymm")
+    AddYm = result
+End Function
+
+'增加年月日
+Public Function AddYmd(Optional ymd& = 20170308, Optional iAdd& = 5) As Long
+    Dim result&
+    result = DateAdd("d", iAdd, ymd2date(ymd))
+    result = Format(result, "yyyymmdd")
+    AddYmd = result
+End Function
+
+'增加年月周
+Public Function AddYmw(Optional ymw& = 2017031, Optional iAdd& = 5)
+    Dim result&
+    result = DateAdd("d", iAdd, ymd2date(ymw))
+    result = Format(result, "yyyymmdd")
+    AddYmw = result
+End Function
+
+'***************************************************
+'公共函数和方法，获取格式日期
+'***************************************************
+'获取格式日期
+Public Function FormatDate(dt As Date, fmt As String) As Date
+    FormatDate = Format(dt, fmt, vbMonday)
+End Function
+
+'***************************************************
+'公共函数和方法，随机日期
+'***************************************************
+'获取随机日期
+Public Function GetRndDate(Min$, Max$) As Date
+    Dim result As Date, diff&
+    diff = DateDiff("d", Min, Max)
+    result = GetDtRndInt(0, diff)
+    result = Format(DateAdd("d", result, Min), "yyyy-mm-dd")
+    GetRndDate = result
+End Function
+
+'获取随机年月
+Public Function GetRndYm(iMin&, iMax&) As Long
+    Dim result As Long, m&
+L2:
+    result = GetDtRndInt(iMin, iMax)
+    m = GetDtMod(result, 100)
+    If m > 12 Or m < 1 Then
+        GoTo L2
+    End If
+    GetYearMonthRnd = result
+End Function
+
+'获取随机年月
+ Function GetRndYm2(iMin&, iMax&) As Long
+    Dim result As Long, diff&
+    diff = DateDiff("m", ym2date(iMin), ym2date(iMax))
+    result = GetDtRndInt(0, diff)
+    result = Format(DateAdd("m", result, ym2date(iMin)), "yyyymm") + 0
+    GetRndYm = result
+End Function
+
+'获取随机年月日
+ Function GetRndYmd(Min&, Max&) As Long
+    Dim result As Long, diff&
+    diff = DateDiff("d", ymd2date(Min), ymd2date(Max))
+    result = GetDtRndInt(0, diff)
+    result = Format(DateAdd("d", result, ymd2date(Min)), "yyyymmdd") + 0
+    GetRndYmd = result
+End Function
+
+'***************************************************
+'公共函数和方法，闰年闰月处理
+'***************************************************
+'是否闰年
+Public Function IsLeapYear(year&) As Boolean
+    If GetMod(year, 4) = 0 And GetMod(year, 400) <> 0 Then
+        IsLeapYear = True
+    End If
+End Function
+
+'所在年份是否有闰月
+Public Function HasLeapMonth(y&) As Boolean
+    HasLeapMonth = GetLeapMonth(y)
+End Function
+
+'是否闰月
+Public Function IsLeapMonth(ym&) As Boolean
+    Dim y&, m&
+    y = ym / 100
+    m = GetLeapMonth(y)
+    If ym = y * 100 + m Then
+        IsLeapMonth = True
+    End If
+End Function
+
+'闰月处理，农历年月,含闰月的年份有13月
+Public Function LeapMonthCh(ym&) As String
+    Dim i&, y&, m&, ymi&
+    y = ym / 100
+    m = ym - y * 100
+    For i = 1 To m
+        ymi = y * 100 + i
+        If IsLeapMonth(ymi) Then
+            Exit For
+        End If
+    Next i
+    If ym <= ymi Then
+        LeapMonthCh = ym
+    ElseIf ym = ymi + 1 Then
+        LeapMonthCh = ym - 1 & "闰"
+    Else
+        LeapMonthCh = ym - 1
+    End If
+End Function
+
+'***************************************************
+'公共函数和方法，获取农历
+'***************************************************
+'获取农历日期文本
+Public Function LunarCh(LunarDate As Date)
+    Dim y&, m&, d&, ym&, ymd As Date, ch$, ymch$
+    y = year(LunarDate)
+    m = Month(LunarDate)
+    d = Day(LunarDate)
+    ym = y * 100 + m
+    ch = LeapMonthCh(ym)
+    If ch Like "*闰*" Then
+        ymch = "闰"
+    End If
+    ymd = DateSerial(Left(ch, 4), Mid(ch, 5, 2) * 1, d)
+    LunarCh = "农历" & year(ymd) & "年" & ymch & Mid(LUNAR_MONTH, Month(ymd), 1) & "月" & Mid(LUNAR_DAY, Day(ymd) * 2 - 1, 2)
+End Function
+
+'干支纪年
+Public Function GetEra(dat)
+    Dim year&, i天干&, i地支&
+    year = WorksheetFunction.Text(dat, "[$-130000]e")
+    i天干 = GetDtMod(year - 4, 10)
+    i地支 = GetDtMod(year - 4, 12)
+    GetEra = Mid(TEN_HEAVERLY_STEMS, i天干 + 1, 1) & Mid(TWELVE_BRANCH_STEMS, i地支 + 1, 1) & "年"
+End Function
+
+'生肖纪年
+Public Function GetZodiac(dat)
+    Dim year&, i生肖&
+    year = WorksheetFunction.Text(dat, "[$-130000]e")
+    i生肖 = GetDtMod(year - 4, 12)
+    GetZodiac = Mid(ZODIAC_STRING, i生肖 + 1, 1) & "年"
+End Function
+
+'***************************************************
+'公共函数和方法，日期差
+'***************************************************
+'月份差
+Public Function MonthDiff(Optional dat1$ = "2017-03-08", Optional dat2$ = "2017-03-08") As String
+    result = Format(DateDiff("m", Now(), "2018-09-01"), "0")
+    TimeDiff = result
+End Function
+
+'时间差
+Public Function TimeDiff(Optional typ As ETimeInterval = vbDay, Optional dat1 As Variant = "2017-03-08", Optional dat2 As Variant = "2017-03-08") As String
+    Dim result$, stv$
+    stv = IIf(typ = vbYear, "yyyy", IIf(typ = vbYearDay, "y", IIf(typ = vbQuarter, "q", IIf(typ = vbMonth, "m", IIf(typ = vbWeek, "ww", _
+            IIf(typ = vbWeekDay, "w", IIf(typ = vbDay, "d", IIf(typ = vbHour, "h", IIf(typ = vbMinite, "n", IIf(typ = vbSecond, "s", ""))))))))))
+    result = Format(DateDiff(stv, dat1, dat2), "0")
+    TimeDiff = result
+End Function
+
+'***************************************************
+'公共函数和方法，倒计时
+'***************************************************
+'倒计时
+Public Function CountdownTime(Optional typ As ETimeInterval = vbMinite, Optional dat$ = "2017-03-08") As String
+    CountdownTime = TimeDiff(typ, Now(), dat)
+End Function
+
+'下班倒计时，返回分钟数
+Public Function GoOffworkRemainTime() As String
+    Dim h&, f&
+    f = CountdownTime(ETimeInterval.vbMinite, Date + TimeSerial(18, 0, 0))
+    h = GetDivisor(f, 60)
+    If f >= 0 And f <= 540 Then
+        result = "距离下班还有" & IIf(h > 0, h & "小时", "") & f Mod 60 & "分钟!"
+    Else
+        result = "非工作时间，请注意休息！"
+    End If
+    GoOffworkRemainTime = result
+End Function
+
+'元旦倒计时，返回天数
+Public Function NewYearRemainDays() As String
+    Dim result$
+    result = "距离元旦还有" & CountdownTime(d, DateSerial(year(Date) + 1, 1, 1)) & "天!"
+    NewYearRemainDays = result
+End Function
+
+'过年倒计时，返回天数
+Public Function LunarYearRemainDays() As String
+    Dim result$, date正月初一 As Date, date除夕 As Date
+    date正月初一 = DateOfLunarYearBegin(year(Date))
+    date正月初一 = IIf(Date > date正月初一, DateOfLunarYearBegin(year(Date) + 1), date正月初一)
+    date除夕 = DateAdd("d", -1, date正月初一)
+    result = "距离过年还有" & CountdownTime(vbDay, DateSerial(year(date除夕), Month(date除夕), Day(date除夕))) & "天!"
+    LunarYearRemainDays = result
+End Function
+
+'***************************************************
+'公共函数和方法，时间处理
+'***************************************************
+'起始日期之前或之后的月数
+Public Function EDate(dat, iAddMonths&) As Date
+    EDate = WorksheetFunction.EDate(dat, iAddMonths)
+End Function
+
+'指定月数之前或之后的月份的最后一天
+Public Function EoMonth(dat, iAddMonths&) As Date
+    EoMonth = WorksheetFunction.EoMonth(dat, iAddMonths)
+End Function
+
+'***************************************************
+'公共函数和方法，报告时间
+'***************************************************
+'获取半月报告日期
+Public Function GetReportFormatDate(dat) As String
+    Select Case Day(dat)
+        Case 15
+            result = Month(dat) & "月上"
+        Case Else
+            result = Month(dat) & "月下"
+    End Select
+    GetReportFormatDate = result
+End Function
+
+'时间秒数的格式化文本
+Public Function GetSecondFormatText(typ As ETimeInterval, Optional sec& = 193, Optional fmt As EChEnFormat = adEnglish) As String
+    Select Case typ
+        Case vbHour
+            result = Int(sec / 3600) & "h" & Int(sec Mod 3600 / 60) & "m"
+        Case vbMinite
+            result = Int(sec / 60) & "m" & sec Mod 60 & "s"
+        Case Else
+            result = sec & "s"
+    End Select
+    If fmt = adChinese Then result = Replace(Replace(Replace(result, "h", "小时"), "m", "分"), "s", "秒") & "钟"
+    GetSecondFormatText = result
+End Function
+
+Public Sub MsgBoxUsedTime()
+    Dim t
+    t = Timer
+    '**************
+    'procdure statement
+    '**************
+    MsgBox "耗时：" & Round(Timer - t, 0) & "秒"
+End Sub
+
+'***************************************************
+'公共函数和方法，时间序列
+'***************************************************
+'列表年月
+Public Function ListYM(Optional ym_start& = 201511, Optional ym_end& = 201602, Optional Step& = 2) As String
+    Dim ym&
+    result = ""
+    ym = ym_start
+    While ym <= ym_end
+        result = result & ym & ","
+        ym = AddYm(ym, Step)
+    Wend
+    result = Left(result, Len(result) - 1)
+    ListYM = result
+End Function
+
+'列表年月日
+Public Function ListYMD(Optional ymd_start& = 20151101, Optional ymd_end& = 20160201, Optional Step& = 2) As String
+    Dim ymd&, result$
+    result = ""
+    ymd = ymd_start
+    While ymd <= ymd_end
+        result = result & ymd & ","
+        ymd = AddYmd(ymd, Step)
+    Wend
+    result = Left(result, Len(result) - 1)
+    ListYMD = result
+End Function
+
+'列表起始日期之前或之后的月数
+Public Function ListEDate(Optional ymd_start& = 20151101, Optional ymd_end& = 20160201, Optional Step& = 2) As String
+    Dim ymd&, result$
+    result = ""
+    ymd = ymd_start
+    While ymd <= ymd_end
+        result = result & ymd & ","
+        ymd = date2ymd(EDate(clsDtm.ymd2date(ymd), Step))
+    Wend
+    result = Left(result, Len(result) - 1)
+    ListEDate = result
+End Function
+
+'列表起始日期滚动12个月之前或之后的月数
+Public Function Rolling12months(dat, Optional isForward As Boolean) As Variant
+    Dim result As Variant, i&
+    ReDim result(0 To 11)
+    i = LBound(result)
+    dat = IIf(isForward, dat, EDate(dat, -11))
+    While i <= UBound(result)
+        result(i) = EDate(dat, i)
+        i = i + 1
+    Wend
+    Rolling12months = result
+End Function
+
+'***************************************************
+'类结束
+'***************************************************
+Private Sub Class_Terminate()
+
+End Sub
